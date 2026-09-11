@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#023a64">
+<title>v4</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #023a64;
+    overflow: hidden;
+    font-family: sans-serif;
+  }
+
+  /* Full-device-height helper (accounts for mobile browser chrome) */
+  .full-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: calc(var(--vh, 1vh) * 100);
+    height: 100dvh;
+  }
+
+  /* ---------- Upload screen ---------- */
+  #upload-screen {
+    background: #023a64;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    touch-action: manipulation;
+  }
+
+  .upload-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #ffffff;
+    font-size: 16px;
+  }
+
+  .upload-row input[type="file"] {
+    color: #ffffff;
+    font-size: 16px;
+  }
+
+  /* ---------- Edit prompt ---------- */
+  #edit-prompt-overlay {
+    background: #023a64;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    touch-action: manipulation;
+    z-index: 2000;
+  }
+
+  #edit-prompt-overlay p {
+    color: #ffffff;
+    font-size: 18px;
+  }
+
+  .prompt-buttons {
+    display: flex;
+    gap: 16px;
+  }
+
+  .prompt-buttons button {
+    font-size: 16px;
+    padding: 8px 20px;
+    background: #ffffff;
+    color: #023a64;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* ---------- Sticker picker screen ---------- */
+  #sticker-picker-screen {
+    background: #023a64;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    touch-action: manipulation;
+    z-index: 1400;
+  }
+
+  .sticker-option {
+    width: 55vw;
+    max-width: 260px;
+    height: 44px;
+    object-fit: cover;
+    cursor: pointer;
+    display: block;
+  }
+
+  /* ---------- Photo screen ---------- */
+  #photo-screen {
+    background: #023a64;
+    display: none;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+
+  #photo1, #photo2 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #023a64;
+  }
+
+  #photo2 {
+    top: -100%;
+    transition: top 0.5s ease;
+  }
+
+  #photo2.visible {
+    top: 0;
+  }
+
+  /* ---------- Overlay editor screen ---------- */
+  #overlay-editor-screen {
+    background: #023a64;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    z-index: 1500;
+  }
+
+  #overlay-wrap {
+    position: relative;
+    touch-action: none;
+  }
+
+  #overlay-photo {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .sticker-overlay-el {
+    position: absolute;
+    cursor: move;
+    touch-action: none;
+  }
+
+  .sticker-overlay-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
+  .sticker-resize-handle {
+    position: absolute;
+    right: -8px;
+    bottom: -8px;
+    width: 16px;
+    height: 16px;
+    background: #ffffff;
+    border: 1px solid #023a64;
+    cursor: se-resize;
+    touch-action: none;
+  }
+
+  #editor-confirm {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #023a64;
+    border: none;
+    font-size: 18px;
+    line-height: 40px;
+    text-align: center;
+    padding: 0;
+    cursor: pointer;
+    z-index: 1600;
+  }
+</style>
+</head>
+<body>
+
+  <div id="upload-screen" class="full-screen">
+    <div class="upload-row">
+      <label for="file1">Photo 1:</label>
+      <input type="file" id="file1" accept="image/*">
+    </div>
+    <div class="upload-row">
+      <label for="file2">Photo 2:</label>
+      <input type="file" id="file2" accept="image/*">
+    </div>
+  </div>
+
+  <div id="edit-prompt-overlay" class="full-screen">
+    <p>edit?</p>
+    <div class="prompt-buttons">
+      <button id="edit-yes" type="button">yes</button>
+      <button id="edit-no" type="button">no</button>
+    </div>
+  </div>
+
+  <div id="sticker-picker-screen" class="full-screen"></div>
+
+  <div id="overlay-editor-screen" class="full-screen">
+    <div id="overlay-wrap">
+      <img id="overlay-photo" alt="Photo 2">
+    </div>
+    <button id="editor-confirm" type="button">&#10003;</button>
+  </div>
+
+  <div id="photo-screen" class="full-screen">
+    <img id="photo1" alt="Photo 1">
+    <img id="photo2" alt="Photo 2">
+  </div>
+
+<script>
+  /* ---------- Responsive full-height handling ---------- */
+  function setVH() {
+    document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+  }
+  setVH();
+  window.addEventListener('resize', setVH);
+  window.addEventListener('orientationchange', setVH);
+
+  /* ---------- Element references ---------- */
+  const uploadScreen = document.getElementById('upload-screen');
+  const editPromptOverlay = document.getElementById('edit-prompt-overlay');
+  const editYesBtn = document.getElementById('edit-yes');
+  const editNoBtn = document.getElementById('edit-no');
+  const stickerPickerScreen = document.getElementById('sticker-picker-screen');
+  const overlayEditorScreen = document.getElementById('overlay-editor-screen');
+  const overlayWrap = document.getElementById('overlay-wrap');
+  const overlayPhoto = document.getElementById('overlay-photo');
+  const editorConfirmBtn = document.getElementById('editor-confirm');
+  const photoScreen = document.getElementById('photo-screen');
+  const file1Input = document.getElementById('file1');
+  const file2Input = document.getElementById('file2');
+  const photo1 = document.getElementById('photo1');
+  const photo2 = document.getElementById('photo2');
+
+  let file1Data = null;
+  let file2Data = null;
+  let pendingPhoto2Data = null;
+  let showingSecond = false;
+
+  const STICKER_IMAGES = [
+    'sticker-1.png',
+    'sticker-2.png',
+    'vie towers.png',
+    'towers east.png',
+    'towers west (bad).png',
+    'sticker-5.png'
+  ];
+
+  /* ---------- File reading ---------- */
+  function readFile(input, callback) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => callback(e.target.result);
+    reader.readAsDataURL(file);
+  }
+
+  function checkReady() {
+    if (file1Data && file2Data) {
+      photo1.src = file1Data;
+      photo2.src = file2Data;
+      uploadScreen.style.display = 'none';
+      photoScreen.style.display = 'block';
+    }
+  }
+
+  file1Input.addEventListener('change', () => {
+    readFile(file1Input, data => { file1Data = data; checkReady(); });
+  });
+
+  file2Input.addEventListener('change', () => {
+    readFile(file2Input, data => {
+      pendingPhoto2Data = data;
+      uploadScreen.style.display = 'none';
+      editPromptOverlay.style.display = 'flex';
+    });
+  });
+
+  editNoBtn.addEventListener('click', () => {
+    editPromptOverlay.style.display = 'none';
+    uploadScreen.style.display = 'flex';
+    file2Data = pendingPhoto2Data;
+    checkReady();
+  });
+
+  editYesBtn.addEventListener('click', () => {
+    editPromptOverlay.style.display = 'none';
+    openStickerPicker();
+  });
+
+  /* ---------- Photo viewer: single tap forward, double tap back ---------- */
+  function showSecond() {
+    photo2.style.transition = '';
+    void photo2.offsetWidth;
+    photo2.classList.add('visible');
+    showingSecond = true;
+  }
+
+  function showFirst() {
+    photo2.style.transition = 'none';
+    photo2.classList.remove('visible');
+    void photo2.offsetWidth;
+    photo2.style.transition = '';
+    showingSecond = false;
+  }
+
+  let lastPhotoTapTime = 0;
+
+  photoScreen.addEventListener('click', () => {
+    if (!showingSecond) {
+      showSecond();
+      lastPhotoTapTime = 0;
+      return;
+    }
+    const now = Date.now();
+    if (now - lastPhotoTapTime < 300) {
+      showFirst();
+      lastPhotoTapTime = 0;
+    } else {
+      lastPhotoTapTime = now;
+    }
+  });
+
+  /* ---------- Sticker picker ---------- */
+  function openStickerPicker() {
+    stickerPickerScreen.innerHTML = '';
+    STICKER_IMAGES.forEach(src => {
+      const opt = document.createElement('img');
+      opt.className = 'sticker-option';
+      opt.src = src;
+      opt.draggable = false;
+      opt.alt = 'Sticker option';
+      opt.addEventListener('click', () => {
+        stickerPickerScreen.style.display = 'none';
+        openOverlayEditor(pendingPhoto2Data, src);
+      });
+      stickerPickerScreen.appendChild(opt);
+    });
+    stickerPickerScreen.style.display = 'flex';
+  }
+
+  /* ---------- Overlay editor ---------- */
+  let overlayNaturalW = 0;
+  let overlayNaturalH = 0;
+  let stickerEl = null;
+  let stickerDrag = null;   // { pointerId, startX, startY, origLeft, origTop }
+  let stickerResize = null; // { pointerId, startX, startY, origW, origH }
+
+  function openOverlayEditor(dataUrl, imgSrc) {
+    overlayEditorScreen.style.display = 'flex';
+    const img = new Image();
+    img.onload = () => {
+      overlayNaturalW = img.naturalWidth;
+      overlayNaturalH = img.naturalHeight;
+      overlayPhoto.src = dataUrl;
+      layoutOverlayWrap();
+      placeStickerOverlay(imgSrc);
+    };
+    img.src = dataUrl;
+  }
+
+  function layoutOverlayWrap() {
+    if (!overlayNaturalW || !overlayNaturalH) return;
+    const maxW = window.innerWidth;
+    const maxH = window.innerHeight;
+    const scale = Math.min(maxW / overlayNaturalW, maxH / overlayNaturalH);
+    const w = overlayNaturalW * scale;
+    const h = overlayNaturalH * scale;
+    overlayWrap.style.width = w + 'px';
+    overlayWrap.style.height = h + 'px';
+  }
+
+  window.addEventListener('resize', () => {
+    if (overlayEditorScreen.style.display !== 'none') layoutOverlayWrap();
+  });
+  window.addEventListener('orientationchange', () => {
+    if (overlayEditorScreen.style.display !== 'none') layoutOverlayWrap();
+  });
+
+  let stickerImgEl = null;
+
+  function placeStickerOverlay(imgSrc) {
+    if (stickerEl) stickerEl.remove();
+
+    const wrapW = overlayWrap.clientWidth;
+    const wrapH = overlayWrap.clientHeight;
+    const size = Math.min(wrapW, wrapH) * 0.35;
+
+    stickerEl = document.createElement('div');
+    stickerEl.className = 'sticker-overlay-el';
+    stickerEl.style.left = ((wrapW - size) / 2) + 'px';
+    stickerEl.style.top = ((wrapH - size) / 2) + 'px';
+    stickerEl.style.width = size + 'px';
+    stickerEl.style.height = size + 'px';
+
+    stickerImgEl = document.createElement('img');
+    stickerImgEl.className = 'sticker-overlay-img';
+    stickerImgEl.src = imgSrc;
+    stickerImgEl.draggable = false;
+    stickerImgEl.alt = 'Sticker';
+    stickerEl.appendChild(stickerImgEl);
+
+    const handle = document.createElement('div');
+    handle.className = 'sticker-resize-handle';
+    stickerEl.appendChild(handle);
+
+    overlayWrap.appendChild(stickerEl);
+
+    stickerEl.addEventListener('pointerdown', ev => {
+      if (ev.target === handle) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      stickerDrag = {
+        pointerId: ev.pointerId,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        origLeft: parseFloat(stickerEl.style.left) || 0,
+        origTop: parseFloat(stickerEl.style.top) || 0
+      };
+    });
+
+    handle.addEventListener('pointerdown', ev => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      stickerResize = {
+        pointerId: ev.pointerId,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        origW: parseFloat(stickerEl.style.width) || size,
+        origH: parseFloat(stickerEl.style.height) || size
+      };
+    });
+  }
+
+  window.addEventListener('pointermove', e => {
+    if (stickerDrag && e.pointerId === stickerDrag.pointerId && stickerEl) {
+      const dx = e.clientX - stickerDrag.startX;
+      const dy = e.clientY - stickerDrag.startY;
+      stickerEl.style.left = (stickerDrag.origLeft + dx) + 'px';
+      stickerEl.style.top = (stickerDrag.origTop + dy) + 'px';
+      return;
+    }
+    if (stickerResize && e.pointerId === stickerResize.pointerId && stickerEl) {
+      const dx = e.clientX - stickerResize.startX;
+      const dy = e.clientY - stickerResize.startY;
+      let newW = stickerResize.origW + dx;
+      let newH = stickerResize.origH + dy;
+      newW = Math.max(20, newW);
+      newH = Math.max(20, newH);
+      stickerEl.style.width = newW + 'px';
+      stickerEl.style.height = newH + 'px';
+    }
+  });
+
+  function clearStickerPointerState(e) {
+    if (stickerDrag && e.pointerId === stickerDrag.pointerId) stickerDrag = null;
+    if (stickerResize && e.pointerId === stickerResize.pointerId) stickerResize = null;
+  }
+  window.addEventListener('pointerup', clearStickerPointerState);
+  window.addEventListener('pointercancel', clearStickerPointerState);
+
+  editorConfirmBtn.addEventListener('click', () => {
+    if (overlayEditorScreen.style.display === 'none' || !stickerEl || !stickerImgEl) return;
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = overlayNaturalW;
+    outCanvas.height = overlayNaturalH;
+    const outCtx = outCanvas.getContext('2d');
+    outCtx.drawImage(overlayPhoto, 0, 0, overlayNaturalW, overlayNaturalH);
+
+    const wrapRect = overlayWrap.getBoundingClientRect();
+    const stickerRect = stickerEl.getBoundingClientRect();
+    const scaleFactor = overlayNaturalW / wrapRect.width;
+
+    const rx = (stickerRect.left - wrapRect.left) * scaleFactor;
+    const ry = (stickerRect.top - wrapRect.top) * scaleFactor;
+    const rw = stickerRect.width * scaleFactor;
+    const rh = stickerRect.height * scaleFactor;
+
+    outCtx.drawImage(stickerImgEl, rx, ry, rw, rh);
+
+    file2Data = outCanvas.toDataURL('image/png');
+
+    overlayEditorScreen.style.display = 'none';
+    if (stickerEl) { stickerEl.remove(); stickerEl = null; }
+    stickerImgEl = null;
+    uploadScreen.style.display = 'flex';
+    checkReady();
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+
+</body>
+</html>
